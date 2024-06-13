@@ -48,7 +48,14 @@ from .propti_pre_processing import interpolate_lists
 
 from .fitness_methods import FitnessMethodRMSE, FitnessMethodInterface, \
     FitnessMethodThreshold, FitnessMethodRangeRMSE, FitnessMethodBandRMSE, \
-    FitnessMethodIntegrate
+    FitnessMethodIntegrate, FitnessMethodBIAS, FitnessMethodPBIAS, \
+    FitnessMethodNASHSUTCLIFFE, FitnessMethodLOGNASHSUTCLIFFE, \
+    FitnessMethodLOGP, FitnessMethodCORELATIONCOEFFICIENT, FitnessMethodRSQUARED, \
+    FitnessMethodMSE, FitnessMethodMAE, FitnessMethodRELATIVERMSE, \
+    FitnessMethodAGREEMENTINDEX, FitnessMethodCOVARIANCE, FitnessMethodDECOMPOSEDMSE, \
+    FitnessMethodKGE, FitnessMethodKGENONPARAMETRIC, FitnessMethodRSR, \
+    FitnessMethodVOLUMEERROR
+    
 
 
 ###########
