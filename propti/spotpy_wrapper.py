@@ -262,6 +262,16 @@ def run_optimisation(params: ParameterSet,
                                          breakpoint=break_point,
                                          backup_every_rep=opt.backup_every)
         results = sampler.sample(opt.repetitions)
+
+    elif opt.algorithm == 'lhs':
+        sampler = spotpy.algorithms.lhs(spot,
+                                         dbname=opt.db_name,
+                                         dbformat='csv',
+                                         parallel=parallel,
+                                         breakpoint=break_point,
+                                         backup_every_rep=opt.backup_every)
+        results = sampler.sample(opt.repetitions)
+
     else:
         return(print('No valid optimization algorithm selected'))
 
