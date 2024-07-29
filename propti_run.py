@@ -10,6 +10,9 @@ import propti as pr
 import logging
 import argparse
 
+logging.basicConfig(level="DEBUG")
+
+
 import mpi4py
 mpi4py.rc.recv_mprobe = False
 

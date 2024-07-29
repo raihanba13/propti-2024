@@ -192,6 +192,27 @@ def run_simulation_serial(setup: SimulationSetup,
     log_file.close()
 
 
+    filename = "count_sim.txt"
+    number = 0
+    if os.path.exists(filename):
+        with open(filename, 'r+') as file:
+            first_line = file.readline().strip()
+            if first_line.isdigit():
+                number = int(first_line) + 1
+            else:
+                number = 1  # Default to 1 if the first line is not a number
+
+            # Move the cursor to the beginning of the file and overwrite
+            file.seek(0)
+            file.write(f"{number}\n")
+            file.truncate()  # Ensure the file is not longer than needed
+    else:
+        with open(filename, 'w+') as file:
+            file.write("1\n")
+
+    print(f"number: {number}")
+
+
 def run_simulation_mp(setups: SimulationSetupSet, num_threads:int = 1):
 
     def do_work(work_item: SimulationSetup):
