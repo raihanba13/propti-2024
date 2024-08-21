@@ -279,8 +279,18 @@ def run_optimisation(params: ParameterSet,
         pars = sampler.status.params_min
     elif sampler.status.optimization_direction == 'maximize':
         pars = sampler.status.params_max
+    # quick patch
+    else:
+        print(sampler.status.optimization_direction)
+        pars = sampler.status.params_max
+
+    
     for i in range(len(params)):
-        params[i].value = pars[i]
+        try:
+            params[i].value = pars[i]
+        except Exception as e:
+            print(e)
+    
     for s in setups:
         s.model_parameter.update(params)
     return params
