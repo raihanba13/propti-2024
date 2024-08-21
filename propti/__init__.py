@@ -54,7 +54,8 @@ from .fitness_methods import FitnessMethodRMSE, FitnessMethodInterface, \
     FitnessMethodMSE, FitnessMethodMAE, FitnessMethodRELATIVERMSE, \
     FitnessMethodAGREEMENTINDEX, FitnessMethodCOVARIANCE, FitnessMethodDECOMPOSEDMSE, \
     FitnessMethodKGE, FitnessMethodKGENONPARAMETRIC, FitnessMethodRSR, \
-    FitnessMethodVOLUMEERROR
+    FitnessMethodVOLUMEERROR,  FitnessMethodETEVSF, FitnessMethodIEVSF, \
+    FitnessMethodGLMEO, FitnessMethodlogLikelihood
     
 
 
