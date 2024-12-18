@@ -2,6 +2,7 @@ import sys
 import logging
 import numpy as np
 import spotpy
+import time
 
 from mpi4py import MPI
 
@@ -462,28 +463,6 @@ class FitnessMethodIntegrate(FitnessMethodInterface):
         else:
             return rmse
 
-
-"""
-https://github.com/thouska/spotpy/blob/master/src/spotpy/objectivefunctions.py
-* BIAS
-* PBIAS
-* NASHSUTCLIFFE
-* LOGNASHSUTCLIFFE
-* LOGP
-* CORELATIONCOEFFICIENT
-* RSQUARED
-* MSE
-* MAE
-* RELATIVERMSE
-* AGREEMENTINDEX
-* COVARIANCE
-* DECOMPOSEDMSE
-* KGE
-* KGENONPARAMETRIC
-* RSR
-* VOLUMEERROR
-"""
-
 class FitnessMethodBIAS(FitnessMethodInterface):
 
     def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
@@ -514,21 +493,7 @@ class FitnessMethodBIAS(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates BIAS between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -580,8 +545,6 @@ class FitnessMethodBIAS(FitnessMethodInterface):
 
         return float(bias)
 
-        # TODO understand scaling and do we need it for this method?
-
 
 class FitnessMethodPBIAS(FitnessMethodInterface):
 
@@ -613,21 +576,7 @@ class FitnessMethodPBIAS(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates Procentual Bias between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -711,21 +660,7 @@ class FitnessMethodNASHSUTCLIFFE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates Nash-Sutcliffe Efficiency between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -779,116 +714,6 @@ class FitnessMethodNASHSUTCLIFFE(FitnessMethodInterface):
         # compute coefficient
         return 1 - (numerator / denominator)
     
-
-class FitnessMethodLOGNASHSUTCLIFFE(FitnessMethodInterface):
-
-    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
-                 check_model_length=True, penalty=3.5, difference=0.05, epsilon2=0.0):
-        #TODO set default of check_model_length to False
-        """
-        Constructor, setting up basic parameters.
-
-        :param n_points: number of evenly spaced data points, endpoint included
-        :param x_def_range:
-        :param scale_fitness: default=True
-        :param check_model_length: flag to control if a check for premature
-            model termination is to be conducted.
-        :param penalty: pre-defined BIAS value that is high enough to nudge
-            the optimiser away from this parameter set.
-        :param difference: percentage that is used to calculate the lower limit.
-        """
-
-        self.n_points = n_points
-        self.x_def = None
-        self.x_def_range = x_def_range
-        self.scale_fitness = scale_fitness
-        self.check_model_length = check_model_length
-        self.penalty = penalty
-        self.difference = difference
-        self.epsilon2 = epsilon2
-
-        """
-        :epsilon2: Value which is added to simulation and evaluation data to errors when simulation or evaluation data has zero values
-        :type: float or list
-        """
-
-        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
-
-    def compute(self, x_e, y_e, y2_e, x_m, y_m):
-        """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
-
-        :param x_e: x-values of the experiment data
-        :param y_e: y-values of the experiment data
-        :param y2_e: y-values of the experiment data
-        :param x_m: x-values of the model data
-        :param y_m: y-values of the model data
-        :return: root mean squared error, possibly scaled
-        """
-
-        msg = "* Compute FitnessMethodLOGNSE."
-        logging.debug(msg)
-
-        # Check for premature model termination.
-        if self.check_model_length is True:
-            # Determine max x-value.
-            x_e_max = np.max(x_e)  # x_e[-1]
-            x_m_max = np.max(x_m)
-            # Calculate lower limit.
-            epsilon = self.difference * x_e_max
-            threshold = x_e_max - epsilon
-
-            # Check if the model x-values are below the lower limit.
-            if x_m_max < threshold:
-                # Award a penalty.
-                lognse = self.penalty
-                return lognse
-
-        # Determine the length of the
-        if self.x_def is None:
-            if self.x_def_range is None:
-                # Find minimum and maximum values that are in both data series.
-                x_min = np.max([np.min(x_e), np.min(x_m)])
-                x_max = np.min([np.max(x_e), np.max(x_m)])
-                self.x_def_range = [x_min, x_max]
-
-            # Create an equidistant interval over n_points, including the
-            # endpoint.
-            self.x_def = np.linspace(self.x_def_range[0],
-                                     self.x_def_range[1],
-                                     self.n_points,
-                                     endpoint=True)
-
-        # Map both y data series on the same x-values, to allow for a
-        # meaningful comparison.
-        y_e_mapped = np.interp(self.x_def, x_e, y_e)
-        y_m_mapped = np.interp(self.x_def, x_m, y_m)
-
-        # s => simulation, e => evaluation/ experimental/ observed
-        s, e = np.array(y_m_mapped) + self.epsilon2, np.array(y_e_mapped) + self.epsilon2
-
-        return float(
-            1
-            - sum((np.log(s) - np.log(e)) ** 2)
-            / sum((np.log(e) - np.mean(np.log(e))) ** 2)
-        )
-
-
-
 class FitnessMethodLOGP(FitnessMethodInterface):
 
     def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
@@ -919,21 +744,7 @@ class FitnessMethodLOGP(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculate Logarithmic probability distribution, log_p between two data series. 
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -981,6 +792,7 @@ class FitnessMethodLOGP(FitnessMethodInterface):
         y_e_mapped = np.interp(self.x_def, x_e, y_e)
         y_m_mapped = np.interp(self.x_def, x_m, y_m)
 
+        """
         scale = np.mean(y_e_mapped) / 10
         if scale < 0.01:
             scale = 0.01
@@ -988,6 +800,12 @@ class FitnessMethodLOGP(FitnessMethodInterface):
         y = (y_e_mapped - y_m_mapped) / scale
         normpdf = -(y**2) / 2 - np.log(np.sqrt(2 * np.pi))
         return np.mean(normpdf)
+        """
+
+        # Calculate the likelihood
+        log_p = spotpy.objectivefunctions.log_p(y_e_mapped, y_m_mapped)
+
+        return log_p
 
 
 
@@ -1021,21 +839,7 @@ class FitnessMethodCORELATIONCOEFFICIENT(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the Corelation Coefficient between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1119,21 +923,7 @@ class FitnessMethodRSQUARED(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates R-squared between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1217,21 +1007,7 @@ class FitnessMethodMSE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the FitnessMethodMSE between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1315,21 +1091,7 @@ class FitnessMethodMAE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the FitnessMethodMAE between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1382,83 +1144,6 @@ class FitnessMethodMAE(FitnessMethodInterface):
         return mae
     
 
-
-class FitnessMethodRELATIVERMSE(FitnessMethodInterface):
-
-    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
-                 check_model_length=True, penalty=3.5, difference=0.05):
-        #TODO set default of check_model_length to False
-        """
-        Constructor, setting up basic parameters.
-
-        :param n_points: number of evenly spaced data points, endpoint included
-        :param x_def_range:
-        :param scale_fitness: default=True
-        :param check_model_length: flag to control if a check for premature
-            model termination is to be conducted.
-        :param penalty: pre-defined BIAS value that is high enough to nudge
-            the optimiser away from this parameter set.
-        :param difference: percentage that is used to calculate the lower limit.
-        """
-
-        self.n_points = n_points
-        self.x_def = None
-        self.x_def_range = x_def_range
-        self.scale_fitness = scale_fitness
-        self.check_model_length = check_model_length
-        self.penalty = penalty
-        self.difference = difference
-
-        # Instantiate FitnessMethodRMSE
-        self.rmse = FitnessMethodRMSE(
-            n_points=n_points,
-            x_def_range=x_def_range,
-            scale_fitness=scale_fitness,
-            check_model_length=check_model_length,
-            penalty=penalty,
-            difference=difference
-        )
-
-        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
-
-    def compute(self, x_e, y_e, y2_e, x_m, y_m):
-        """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
-
-        :param x_e: x-values of the experiment data
-        :param y_e: y-values of the experiment data
-        :param y2_e: y-values of the experiment data
-        :param x_m: x-values of the model data
-        :param y_m: y-values of the model data
-        :return: root mean squared error, possibly scaled
-        """
-
-        msg = "* Compute FitnessMethodRELATIVERMSE."
-        logging.debug(msg)
-
-        rmse = self.rmse.compute(x_e, y_e, y2_e, x_m, y_m)
-
-        y_e_mapped = np.interp(self.x_def, x_e, y_e)
-        rrmse = rmse / np.mean(y_e_mapped)
-
-        return rrmse
-
-
-
 class FitnessMethodAGREEMENTINDEX(FitnessMethodInterface):
 
     def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
@@ -1489,21 +1174,7 @@ class FitnessMethodAGREEMENTINDEX(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the Agreement Index between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1587,21 +1258,7 @@ class FitnessMethodCOVARIANCE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the FitnessMethodCOVARIANCE between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1685,21 +1342,7 @@ class FitnessMethodDECOMPOSEDMSE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the FitnessMethodDECOMPOSEDMSE between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1783,21 +1426,7 @@ class FitnessMethodKGE(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the KGE between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1881,21 +1510,7 @@ class FitnessMethodKGENONPARAMETRIC(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the KGE NONPARAMETRIC between two data series.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -1948,88 +1563,6 @@ class FitnessMethodKGENONPARAMETRIC(FitnessMethodInterface):
         return kge_non_parametric  
 
                
-    
-
-
-class FitnessMethodRSR(FitnessMethodInterface):
-
-    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
-                 check_model_length=True, penalty=3.5, difference=0.05):
-        #TODO set default of check_model_length to False
-        """
-
-        RMSE-observations standard deviation ratio
-            
-        Constructor, setting up basic parameters.
-
-        :param n_points: number of evenly spaced data points, endpoint included
-        :param x_def_range:
-        :param scale_fitness: default=True
-        :param check_model_length: flag to control if a check for premature
-            model termination is to be conducted.
-        :param penalty: pre-defined BIAS value that is high enough to nudge
-            the optimiser away from this parameter set.
-        :param difference: percentage that is used to calculate the lower limit.
-        """
-
-        self.n_points = n_points
-        self.x_def = None
-        self.x_def_range = x_def_range
-        self.scale_fitness = scale_fitness
-        self.check_model_length = check_model_length
-        self.penalty = penalty
-        self.difference = difference
-
-        # Instantiate FitnessMethodRMSE
-        self.rmse = FitnessMethodRMSE(
-            n_points=n_points,
-            x_def_range=x_def_range,
-            scale_fitness=scale_fitness,
-            check_model_length=check_model_length,
-            penalty=penalty,
-            difference=difference
-        )
-
-        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
-
-    def compute(self, x_e, y_e, y2_e, x_m, y_m):
-        """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
-
-        :param x_e: x-values of the experiment data
-        :param y_e: y-values of the experiment data
-        :param y2_e: y-values of the experiment data
-        :param x_m: x-values of the model data
-        :param y_m: y-values of the model data
-        :return: root mean squared error, possibly scaled
-        """
-
-        msg = "* Compute FitnessMethodRSR."
-        logging.debug(msg)
-
-        rmse = self.rmse.compute(x_e, y_e, y2_e, x_m, y_m)
-
-        y_e_mapped = np.interp(self.x_def, x_e, y_e)
-        rsr = rmse / np.std(y_e_mapped)
-
-        return rsr
-    
-
-
 class FitnessMethodVOLUMEERROR(FitnessMethodInterface):
 
     def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
@@ -2060,21 +1593,8 @@ class FitnessMethodVOLUMEERROR(FitnessMethodInterface):
 
     def compute(self, x_e, y_e, y2_e, x_m, y_m):
         """
-        Calculates the root mean squared error between two data series.
-
-        This method calculates the root mean squared error (RMSE) between
-        two data series. It can also scale the RMSE value based on different
-        aspects of the experiment data.
-        Furthermore, it can check if the end of the experiment and model
-        x-values are close together in an effort to find data series as a
-        result of premature model termination, e.g. numerical instabilites
-        with FDS. This step is necessary in some cases, where the simulation
-        crashes but still some data points are written. Primarily, because
-        this method scales the x-range to map both data series to it,
-        which allows proper comparison in the RMSE step, when no explicit
-        x-range or x-def were provided. The RMSE values are then manually
-        set to a high enough value (penalty) to nudge the optimiser away
-        from this parameter set.
+        Calculates the VOLUME ERROR between two data series.
+        Using spotpy.objectivefunctions.volume_error.
 
         :param x_e: x-values of the experiment data
         :param y_e: y-values of the experiment data
@@ -2125,3 +1645,456 @@ class FitnessMethodVOLUMEERROR(FitnessMethodInterface):
         volume_error = spotpy.objectivefunctions.volume_error(y_e_mapped, y_m_mapped) 
 
         return volume_error 
+
+
+
+
+class FitnessMethodETEVSF(FitnessMethodInterface):
+
+    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
+                 check_model_length=True, penalty=3.5, difference=0.05):
+        #TODO set default of check_model_length to False
+        """
+        Constructor, setting up basic parameters.
+
+        :param n_points: number of evenly spaced data points, endpoint included
+        :param x_def_range:
+        :param scale_fitness: default=True
+        :param check_model_length: flag to control if a check for premature
+            model termination is to be conducted.
+        :param penalty: pre-defined BIAS value that is high enough to nudge
+            the optimiser away from this parameter set.
+        :param difference: percentage that is used to calculate the lower limit.
+        """
+
+        self.n_points = n_points
+        self.x_def = None
+        self.x_def_range = x_def_range
+        self.scale_fitness = scale_fitness
+        self.check_model_length = check_model_length
+        self.penalty = penalty
+        self.difference = difference
+
+        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
+
+    def compute(self, x_e, y_e, y2_e, x_m, y_m):
+        """
+        Calculates the Exponential Transform Error Var Shaping Factor between two data series.
+        Using spotpy.likelihood.ExponentialTransformErrVarShapingFactor.
+
+        :param x_e: x-values of the experiment data
+        :param y_e: y-values of the experiment data
+        :param y2_e: y-values of the experiment data
+        :param x_m: x-values of the model data
+        :param y_m: y-values of the model data
+        :return: root mean squared error, possibly scaled
+        """
+
+        msg = "* Compute ExponentialTransformErrVarShapingFactor."
+        logging.debug(msg)
+
+        # Check for premature model termination.
+        if self.check_model_length is True:
+            # Determine max x-value.
+            x_e_max = np.max(x_e)  # x_e[-1]
+            x_m_max = np.max(x_m)
+            # Calculate lower limit.
+            epsilon = self.difference * x_e_max
+            threshold = x_e_max - epsilon
+
+            # Check if the model x-values are below the lower limit.
+            if x_m_max < threshold:
+                # Award a penalty.
+                volume_error = self.penalty
+                return volume_error
+
+        # Determine the length of the
+        if self.x_def is None:
+            if self.x_def_range is None:
+                # Find minimum and maximum values that are in both data series.
+                x_min = np.max([np.min(x_e), np.min(x_m)])
+                x_max = np.min([np.max(x_e), np.max(x_m)])
+                self.x_def_range = [x_min, x_max]
+
+            # Create an equidistant interval over n_points, including the
+            # endpoint.
+            self.x_def = np.linspace(self.x_def_range[0],
+                                     self.x_def_range[1],
+                                     self.n_points,
+                                     endpoint=True)
+
+        # Map both y data series on the same x-values, to allow for a
+        # meaningful comparison.
+        y_e_mapped = np.interp(self.x_def, x_e, y_e)
+        y_m_mapped = np.interp(self.x_def, x_m, y_m)
+
+        etevsf = spotpy.likelihoods.ExponentialTransformErrVarShapingFactor(y_e_mapped, y_m_mapped) 
+
+        return etevsf 
+    
+
+
+class FitnessMethodIEVSF(FitnessMethodInterface):
+
+    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
+                 check_model_length=True, penalty=3.5, difference=0.05):
+        #TODO set default of check_model_length to False
+        """
+        Constructor, setting up basic parameters.
+
+        :param n_points: number of evenly spaced data points, endpoint included
+        :param x_def_range:
+        :param scale_fitness: default=True
+        :param check_model_length: flag to control if a check for premature
+            model termination is to be conducted.
+        :param penalty: pre-defined BIAS value that is high enough to nudge
+            the optimiser away from this parameter set.
+        :param difference: percentage that is used to calculate the lower limit.
+        """
+
+        self.n_points = n_points
+        self.x_def = None
+        self.x_def_range = x_def_range
+        self.scale_fitness = scale_fitness
+        self.check_model_length = check_model_length
+        self.penalty = penalty
+        self.difference = difference
+
+        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
+
+    def compute(self, x_e, y_e, y2_e, x_m, y_m):
+        """
+        Calculates the Inverse Error Variance Shaping Factor between two data series.
+        Using spotpy.likelihoods.InverseErrorVarianceShapingFactor.
+
+        :param x_e: x-values of the experiment data
+        :param y_e: y-values of the experiment data
+        :param y2_e: y-values of the experiment data
+        :param x_m: x-values of the model data
+        :param y_m: y-values of the model data
+        :return: root mean squared error, possibly scaled
+        """
+
+        msg = "* Compute InverseErrorVarianceShapingFactor."
+        logging.debug(msg)
+
+        # Check for premature model termination.
+        if self.check_model_length is True:
+            # Determine max x-value.
+            x_e_max = np.max(x_e)  # x_e[-1]
+            x_m_max = np.max(x_m)
+            # Calculate lower limit.
+            epsilon = self.difference * x_e_max
+            threshold = x_e_max - epsilon
+
+            # Check if the model x-values are below the lower limit.
+            if x_m_max < threshold:
+                # Award a penalty.
+                volume_error = self.penalty
+                return volume_error
+
+        # Determine the length of the
+        if self.x_def is None:
+            if self.x_def_range is None:
+                # Find minimum and maximum values that are in both data series.
+                x_min = np.max([np.min(x_e), np.min(x_m)])
+                x_max = np.min([np.max(x_e), np.max(x_m)])
+                self.x_def_range = [x_min, x_max]
+
+            # Create an equidistant interval over n_points, including the
+            # endpoint.
+            self.x_def = np.linspace(self.x_def_range[0],
+                                     self.x_def_range[1],
+                                     self.n_points,
+                                     endpoint=True)
+
+        # Map both y data series on the same x-values, to allow for a
+        # meaningful comparison.
+        y_e_mapped = np.interp(self.x_def, x_e, y_e)
+        y_m_mapped = np.interp(self.x_def, x_m, y_m)
+
+        ievsf = spotpy.likelihoods.InverseErrorVarianceShapingFactor(y_e_mapped, y_m_mapped) 
+
+        return ievsf 
+
+
+
+class FitnessMethodGLMEO(FitnessMethodInterface):
+
+    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
+                 check_model_length=True, penalty=3.5, difference=0.05):
+        #TODO set default of check_model_length to False
+        """
+        Constructor, setting up basic parameters.
+
+        :param n_points: number of evenly spaced data points, endpoint included
+        :param x_def_range:
+        :param scale_fitness: default=True
+        :param check_model_length: flag to control if a check for premature
+            model termination is to be conducted.
+        :param penalty: pre-defined BIAS value that is high enough to nudge
+            the optimiser away from this parameter set.
+        :param difference: percentage that is used to calculate the lower limit.
+        """
+
+        self.n_points = n_points
+        self.x_def = None
+        self.x_def_range = x_def_range
+        self.scale_fitness = scale_fitness
+        self.check_model_length = check_model_length
+        self.penalty = penalty
+        self.difference = difference
+
+        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
+
+    def compute(self, x_e, y_e, y2_e, x_m, y_m):
+        """
+        Calculates the gaussianLikelihoodMeasErrorOut between two data series.
+        Using spotpy.likelihoods.gaussianLikelihoodMeasErrorOut.
+
+        :param x_e: x-values of the experiment data
+        :param y_e: y-values of the experiment data
+        :param y2_e: y-values of the experiment data
+        :param x_m: x-values of the model data
+        :param y_m: y-values of the model data
+        :return: root mean squared error, possibly scaled
+        """
+
+        msg = "* Compute gaussianLikelihoodMeasErrorOut."
+        logging.debug(msg)
+
+        # Check for premature model termination.
+        if self.check_model_length is True:
+            # Determine max x-value.
+            x_e_max = np.max(x_e)  # x_e[-1]
+            x_m_max = np.max(x_m)
+            # Calculate lower limit.
+            epsilon = self.difference * x_e_max
+            threshold = x_e_max - epsilon
+
+            # Check if the model x-values are below the lower limit.
+            if x_m_max < threshold:
+                # Award a penalty.
+                volume_error = self.penalty
+                return volume_error
+
+        # Determine the length of the
+        if self.x_def is None:
+            if self.x_def_range is None:
+                # Find minimum and maximum values that are in both data series.
+                x_min = np.max([np.min(x_e), np.min(x_m)])
+                x_max = np.min([np.max(x_e), np.max(x_m)])
+                self.x_def_range = [x_min, x_max]
+
+            # Create an equidistant interval over n_points, including the
+            # endpoint.
+            self.x_def = np.linspace(self.x_def_range[0],
+                                     self.x_def_range[1],
+                                     self.n_points,
+                                     endpoint=True)
+
+        # Map both y data series on the same x-values, to allow for a
+        # meaningful comparison.
+        y_e_mapped = np.interp(self.x_def, x_e, y_e)
+        y_m_mapped = np.interp(self.x_def, x_m, y_m)
+
+        glmeo = spotpy.likelihoods.gaussianLikelihoodMeasErrorOut(y_e_mapped, y_m_mapped) 
+
+        return glmeo 
+
+
+
+class FitnessMethodlogLikelihood(FitnessMethodInterface):
+
+    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
+                 check_model_length=True, penalty=3.5, difference=0.05):
+        #TODO set default of check_model_length to False
+        """
+        Constructor, setting up basic parameters.
+
+        :param n_points: number of evenly spaced data points, endpoint included
+        :param x_def_range:
+        :param scale_fitness: default=True
+        :param check_model_length: flag to control if a check for premature
+            model termination is to be conducted.
+        :param penalty: pre-defined BIAS value that is high enough to nudge
+            the optimiser away from this parameter set.
+        :param difference: percentage that is used to calculate the lower limit.
+        """
+
+        self.n_points = n_points
+        self.x_def = None
+        self.x_def_range = x_def_range
+        self.scale_fitness = scale_fitness
+        self.check_model_length = check_model_length
+        self.penalty = penalty
+        self.difference = difference
+
+        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
+
+    def compute(self, x_e, y_e, y2_e, x_m, y_m):
+        """
+        Calculates the logLikelihood between two data series.
+        Using spotpy.likelihoods.logLikelihood.
+
+        :param x_e: x-values of the experiment data
+        :param y_e: y-values of the experiment data
+        :param y2_e: y-values of the experiment data
+        :param x_m: x-values of the model data
+        :param y_m: y-values of the model data
+        :return: root mean squared error, possibly scaled
+        """
+
+        msg = "* Compute logLikelihood."
+        logging.debug(msg)
+
+        # Check for premature model termination.
+        if self.check_model_length is True:
+            # Determine max x-value.
+            x_e_max = np.max(x_e)  # x_e[-1]
+            x_m_max = np.max(x_m)
+            # Calculate lower limit.
+            epsilon = self.difference * x_e_max
+            threshold = x_e_max - epsilon
+
+            # Check if the model x-values are below the lower limit.
+            if x_m_max < threshold:
+                # Award a penalty.
+                volume_error = self.penalty
+                return volume_error
+
+        # Determine the length of the
+        if self.x_def is None:
+            if self.x_def_range is None:
+                # Find minimum and maximum values that are in both data series.
+                x_min = np.max([np.min(x_e), np.min(x_m)])
+                x_max = np.min([np.max(x_e), np.max(x_m)])
+                self.x_def_range = [x_min, x_max]
+
+            # Create an equidistant interval over n_points, including the
+            # endpoint.
+            self.x_def = np.linspace(self.x_def_range[0],
+                                     self.x_def_range[1],
+                                     self.n_points,
+                                     endpoint=True)
+
+        # Map both y data series on the same x-values, to allow for a
+        # meaningful comparison.
+        y_e_mapped = np.interp(self.x_def, x_e, y_e)
+        y_m_mapped = np.interp(self.x_def, x_m, y_m)
+
+        logLikelihood = spotpy.likelihoods.logLikelihood(y_e_mapped, y_m_mapped) 
+
+        return logLikelihood 
+
+
+class FitnessMethodUMBRAE(FitnessMethodInterface):
+
+    def __init__(self, n_points=None, x_def_range=None, scale_fitness=True,
+                 check_model_length=True, penalty=3.5, difference=0.05):
+        #TODO set default of check_model_length to False
+        """
+        Constructor, setting up basic parameters.
+
+        :param n_points: number of evenly spaced data points, endpoint included
+        :param x_def_range:
+        :param scale_fitness: default=True
+        :param check_model_length: flag to control if a check for premature
+            model termination is to be conducted.
+        :param penalty: pre-defined BIAS value that is high enough to nudge
+            the optimiser away from this parameter set.
+        :param difference: percentage that is used to calculate the lower limit.
+        """
+
+        self.n_points = n_points
+        self.x_def = None
+        self.x_def_range = x_def_range
+        self.scale_fitness = scale_fitness
+        self.check_model_length = check_model_length
+        self.penalty = penalty
+        self.difference = difference
+
+        FitnessMethodInterface.__init__(self, scale_fitness=scale_fitness)
+
+    def compute(self, x_e, y_e, y2_e, x_m, y_m):
+        """
+        Calculates the UMBRAE between two data series.
+
+        https://www.researchgate.net/publication/315615234_A_new_accuracy_measure_based_on_bounded_relative_error_for_time_series_forecasting
+
+        :param x_e: x-values of the experiment data
+        :param y_e: y-values of the experiment data
+        :param y2_e: y-values of the experiment data
+        :param x_m: x-values of the model data
+        :param y_m: y-values of the model data
+        :return: root mean squared error, possibly scaled
+        """
+
+        msg = "* Compute UMBRAE."
+        logging.debug(msg)
+
+        # Check for premature model termination.
+        if self.check_model_length is True:
+            # Determine max x-value.
+            x_e_max = np.max(x_e)  # x_e[-1]
+            x_m_max = np.max(x_m)
+            # Calculate lower limit.
+            epsilon = self.difference * x_e_max
+            threshold = x_e_max - epsilon
+
+            # Check if the model x-values are below the lower limit.
+            if x_m_max < threshold:
+                # Award a penalty.
+                volume_error = self.penalty
+                return volume_error
+
+        # Determine the length of the
+        if self.x_def is None:
+            if self.x_def_range is None:
+                # Find minimum and maximum values that are in both data series.
+                x_min = np.max([np.min(x_e), np.min(x_m)])
+                x_max = np.min([np.max(x_e), np.max(x_m)])
+                self.x_def_range = [x_min, x_max]
+
+            # Create an equidistant interval over n_points, including the
+            # endpoint.
+            self.x_def = np.linspace(self.x_def_range[0],
+                                     self.x_def_range[1],
+                                     self.n_points,
+                                     endpoint=True)
+
+        # Map both y data series on the same x-values, to allow for a
+        # meaningful comparison.
+        y_e_mapped = np.interp(self.x_def, x_e, y_e)
+        y_m_mapped = np.interp(self.x_def, x_m, y_m)
+
+        e_t = np.absolute(y_e_mapped-y_m_mapped)
+        # There are multiple ways to calculate the e_t_star, we choose to use median 
+        # Naive Forecast as Benchmark, Mean or Median of Experimental Data, Baseline Model
+        e_t_star = np.absolute(y_e_mapped-np.median(y_m_mapped))
+
+        e_t = np.where((e_t == 0.0) & (e_t_star == 0.0), 0.5, e_t)
+        e_t_star = np.where((e_t == 0.0) & (e_t_star == 0.0), 0.5, e_t_star)
+
+        # TODO: What if e_t_star and e_t are too small, very close to zero but not zero
+        # two special logic 
+        # experimental and model both are zero, we put .5
+        # only e_t is zero, means experiment=model, we put 0
+
+        bounded_relative_abs_error = np.zeros(e_t_star.shape[0]) 
+        # need to optimize this loop 
+        for idx, (e, e_s) in enumerate(zip(e_t, e_t_star)):
+
+            try:
+                bounded_relative_abs_error[idx] = e / (e + e_s)
+            except Exception as e:
+                bounded_relative_abs_error[idx] = 0.5
+                logging.debug("UMBRAE method: {e}")
+
+
+        mean_brae = np.mean(bounded_relative_abs_error)
+
+        unscaled_mbrae = mean_brae / (1 - mean_brae)
+
+        return unscaled_mbrae 
+
